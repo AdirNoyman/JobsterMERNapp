@@ -7,14 +7,31 @@ const getAllJobs = async (req, res) => {
   const queryObject = {
     createdBy: req.user.userId,
   };
-  console.log('stage 1: ', queryObject);
-  // Query logic
+
+  // Create the query
   if (search) {
     queryObject.position = { $regex: search, $options: 'i' };
   }
-  console.log('stage 2: ', queryObject);
 
+  if (status && status !== 'all') {
+    queryObject.status = status;
+  }
+
+  if (jobType && jobType !== 'all') {
+    queryObject.jobType = jobType;
+  }
+
+  console.log('Query object: ', queryObject);
+
+  // Run the query
   let queryResult = Job.find(queryObject);
+
+  // Sort the results
+  if (sort === 'latest') queryResult = queryResult.sort('-createdAt');
+  if (sort === 'oldest') queryResult = queryResult.sort('createdAt');
+  if (sort === 'a-z') queryResult = queryResult.sort('position');
+  if (sort === 'z-a') queryResult = queryResult.sort('-position');
+
   const jobs = await queryResult;
   res.status(StatusCodes.OK).json({ jobs });
 };
