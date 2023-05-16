@@ -21,10 +21,15 @@ const getAllJobs = async (req, res) => {
     queryObject.jobType = jobType;
   }
 
-  console.log('Query object: ', queryObject);
+  const page = Number(req.query.page) || 1;
+  // Limit is coming from the server but can also come from the client if the user wants, but will be limited to 10 items
+  const limit = Number(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
 
   // Run the query
   let queryResult = Job.find(queryObject);
+
+  queryResult = queryResult.skip(skip).limit(limit);
 
   // Sort the results
   if (sort === 'latest') queryResult = queryResult.sort('-createdAt');
@@ -33,7 +38,13 @@ const getAllJobs = async (req, res) => {
   if (sort === 'z-a') queryResult = queryResult.sort('-position');
 
   const jobs = await queryResult;
-  res.status(StatusCodes.OK).json({ jobs });
+
+  // Calculate total number of items and pages
+  const totalJobs = await Job.countDocuments(queryObject);
+  const numOfPages = Math.ceil(totalJobs / limit);
+
+  // Send the response to the client
+  res.status(StatusCodes.OK).json({ jobs, totalJobs, numOfPages });
 };
 const getJob = async (req, res) => {
   const {
