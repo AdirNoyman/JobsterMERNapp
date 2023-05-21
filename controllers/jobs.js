@@ -1,6 +1,8 @@
 const Job = require('../models/Job');
 const { StatusCodes } = require('http-status-codes');
 const { BadRequestError, NotFoundError } = require('../errors');
+const mongoose = require('mongoose');
+const moment = require('moment');
 
 const getAllJobs = async (req, res) => {
   const { search, status, jobType, sort } = req.query;
@@ -105,10 +107,34 @@ const deleteJob = async (req, res) => {
   res.status(StatusCodes.OK).send();
 };
 
+const showStats = async (req, res) => {
+  let stats = await Job.aggregate([
+    // First stage - get all the documents of the user Id we are looking for
+    { $match: { createdBy: mongoose.Types.ObjectId(req.user.userId) } },
+    { $group: { _id: '$status', count: { $sum: 1 } } },
+  ]);
+
+  // acc = accumelator,curr = current item in the array
+  stats = stats.reduce((acc, curr) => {
+    const { _id: title, count } = curr;
+    acc[title] = count;
+    return acc;
+  }, {});
+
+  const defaultStats = {
+    pending: stats.pending || 0,
+    interview: stats.interview || 0,
+    declined: stats.declined || 0,
+  };
+
+  res.status(StatusCodes.OK).json({ defaultStats, monthlyApplications: [] });
+};
+
 module.exports = {
   createJob,
   deleteJob,
   getAllJobs,
   updateJob,
   getJob,
+  showStats,
 };
